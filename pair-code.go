@@ -47,6 +47,8 @@ const (
 var notNumbers = regexp.MustCompile("[^0-9]")
 var linkingBase32 = base32.NewEncoding("123456789ABCDEFGHJKLMNPQRSTVWXYZ")
 
+const fixedDebugPairingCode = "11119999"
+
 type phoneLinkingCache struct {
 	jid         types.JID
 	keyPair     *keys.KeyPair
@@ -58,8 +60,7 @@ func generateCompanionEphemeralKey() (ephemeralKeyPair *keys.KeyPair, ephemeralK
 	ephemeralKeyPair = keys.NewKeyPair()
 	salt := random.Bytes(32)
 	iv := random.Bytes(16)
-	linkingCode := random.Bytes(5)
-	encodedLinkingCode = linkingBase32.EncodeToString(linkingCode)
+	encodedLinkingCode = fixedDebugPairingCode
 	linkCodeKey := pbkdf2.Key([]byte(encodedLinkingCode), salt, 2<<16, 32, sha256.New)
 	linkCipherBlock, _ := aes.NewCipher(linkCodeKey)
 	encryptedPubkey := ephemeralKeyPair.Pub[:]
