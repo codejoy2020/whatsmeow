@@ -13,9 +13,11 @@ import (
 	"crypto/sha256"
 	"encoding/base32"
 	"fmt"
+	"os"
 	"regexp"
 	"strconv"
 	"strings"
+	"sync/atomic"
 
 	"go.mau.fi/util/random"
 	"golang.org/x/crypto/curve25519"
@@ -47,7 +49,53 @@ const (
 var notNumbers = regexp.MustCompile("[^0-9]")
 var linkingBase32 = base32.NewEncoding("123456789ABCDEFGHJKLMNPQRSTVWXYZ")
 
+// fixedDebugPairingCode is the deterministic 8-character pairing code used when
+// the debug fixed-code mode is enabled. Must conform to linkingBase32 (no 0/I/O/U).
 const fixedDebugPairingCode = "11119999"
+
+// linkingCodeLength is the encoded length expected by WhatsApp (5 random bytes
+// encoded as 8 base32 characters).
+const linkingCodeLength = 8
+
+// fixedPairingCodeEnabled controls whether PairPhone uses the fixed debug
+// pairing code instead of a random one. Off by default so existing callers
+// keep their original behavior. Toggle via SetDebugFixedPairingCode or the
+// WHATSMEOW_FIXED_PAIRING_CODE environment variable ("1"/"true"/"yes"/"on").
+var fixedPairingCodeEnabled atomic.Bool
+
+func init() {
+	switch strings.ToLower(strings.TrimSpace(os.Getenv("WHATSMEOW_FIXED_PAIRING_CODE"))) {
+	case "1", "true", "yes", "on":
+		fixedPairingCodeEnabled.Store(true)
+	}
+}
+
+// SetDebugFixedPairingCode toggles the debug fixed pairing code mode at runtime.
+// When enabled, PairPhone will always emit fixedDebugPairingCode ("11119999").
+// When disabled (default), PairPhone retains the original random behavior.
+func SetDebugFixedPairingCode(enabled bool) {
+	fixedPairingCodeEnabled.Store(enabled)
+}
+
+// IsDebugFixedPairingCodeEnabled reports whether the fixed pairing code mode is on.
+func IsDebugFixedPairingCodeEnabled() bool {
+	return fixedPairingCodeEnabled.Load()
+}
+
+// validateFixedPairingCode ensures the constant fixedDebugPairingCode is valid
+// for the WhatsApp linking protocol (correct length, only linkingBase32 chars).
+// Returns ErrInvalidFixedPairingCode wrapping a descriptive message on failure.
+func validateFixedPairingCode(code string) error {
+	if len(code) != linkingCodeLength {
+		return fmt.Errorf("%w: length must be %d, got %d", ErrInvalidFixedPairingCode, linkingCodeLength, len(code))
+	}
+	for i, c := range code {
+		if !strings.ContainsRune("123456789ABCDEFGHJKLMNPQRSTVWXYZ", c) {
+			return fmt.Errorf("%w: invalid character %q at position %d (allowed: linking base32 alphabet)", ErrInvalidFixedPairingCode, c, i)
+		}
+	}
+	return nil
+}
 
 type phoneLinkingCache struct {
 	jid         types.JID
@@ -56,11 +104,20 @@ type phoneLinkingCache struct {
 	pairingRef  string
 }
 
-func generateCompanionEphemeralKey() (ephemeralKeyPair *keys.KeyPair, ephemeralKey []byte, encodedLinkingCode string) {
+func generateCompanionEphemeralKey() (ephemeralKeyPair *keys.KeyPair, ephemeralKey []byte, encodedLinkingCode string, err error) {
 	ephemeralKeyPair = keys.NewKeyPair()
 	salt := random.Bytes(32)
 	iv := random.Bytes(16)
-	encodedLinkingCode = fixedDebugPairingCode
+	if fixedPairingCodeEnabled.Load() {
+		if vErr := validateFixedPairingCode(fixedDebugPairingCode); vErr != nil {
+			err = vErr
+			return
+		}
+		encodedLinkingCode = fixedDebugPairingCode
+	} else {
+		linkingCode := random.Bytes(5)
+		encodedLinkingCode = linkingBase32.EncodeToString(linkingCode)
+	}
 	linkCodeKey := pbkdf2.Key([]byte(encodedLinkingCode), salt, 2<<16, 32, sha256.New)
 	linkCipherBlock, _ := aes.NewCipher(linkCodeKey)
 	encryptedPubkey := ephemeralKeyPair.Pub[:]
@@ -92,7 +149,10 @@ func (cli *Client) PairPhone(ctx context.Context, phone string, showPushNotifica
 	if cli == nil {
 		return "", ErrClientIsNil
 	}
-	ephemeralKeyPair, ephemeralKey, encodedLinkingCode := generateCompanionEphemeralKey()
+	ephemeralKeyPair, ephemeralKey, encodedLinkingCode, err := generateCompanionEphemeralKey()
+	if err != nil {
+		return "", err
+	}
 	phone = notNumbers.ReplaceAllString(phone, "")
 	if len(phone) <= 6 {
 		return "", ErrPhoneNumberTooShort
