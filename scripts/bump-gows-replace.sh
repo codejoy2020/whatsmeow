@@ -22,6 +22,8 @@
 #   WHATSMEOW_FORK_REPO      默认 github.com/codejoy2020/whatsmeow
 #   WHATSMEOW_FORK_GIT_URL   默认 https://${WHATSMEOW_FORK_REPO}.git
 #   WHATSMEOW_LOCAL_PATH     默认 /home/boss/workspace/whatsmeow
+#   GOWS_SRC                 直接指定 gows 模块目录（含 go.mod），例如 .../WahaForge/gows/src
+#   WAHA_FORGE_ROOT          若设置且未设置 GOWS_SRC，则使用 ${WAHA_FORGE_ROOT}/gows/src
 #   GOWS_SKIP_TIDY=1         跳过 go mod tidy
 #   GOWS_SKIP_BUILD=1        跳过 go build ./... 验证
 #
@@ -40,7 +42,13 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-GOWS_SRC="${ROOT}/gows/src"
+if [[ -n "${GOWS_SRC:-}" ]]; then
+  :
+elif [[ -n "${WAHA_FORGE_ROOT:-}" ]]; then
+  GOWS_SRC="${WAHA_FORGE_ROOT}/gows/src"
+else
+  GOWS_SRC="${ROOT}/gows/src"
+fi
 GOMOD="${GOWS_SRC}/go.mod"
 
 UPSTREAM_MODULE="go.mau.fi/whatsmeow"

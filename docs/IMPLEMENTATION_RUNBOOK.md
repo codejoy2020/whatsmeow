@@ -51,22 +51,19 @@ UPSTREAM_URL=https://github.com/tulir/whatsmeow.git UPSTREAM_BRANCH=main ./scrip
 你在本机仓库 <ROOT_DIR>/whatsmeow 中工作。
 
 目标：
-在 whatsmeow 中实现固定配对码 11119999 的调试能力；默认行为保持不变（不开启固定模式时仍走现有随机/原始逻辑）。
+配对码流程始终只生成固定调试码 11119999（展示为 1111-9999）。不要环境变量或运行时开关；不要保留“随机配对码”分支。
 
 必须遵守：
 1) 不要修改 go.mod 的 module 路径，必须保持 go.mau.fi/whatsmeow。
 2) 优先修改 pair-code.go 及配对码相关最小范围代码，不做无关重构。
-3) 默认调用路径必须兼容现有调用方（不开启固定模式时行为与当前一致）。
-4) 固定码 11119999 需要做清晰校验（长度、字符集）和错误信息。
-5) 代码注释保持简洁，只解释关键非直观点。
-6) 修改完成后必须运行并汇报：
-   - <ROOT_DIR>/whatsmeow/scripts/test-local.sh
-7) 不要求评估或改动 <ROOT_DIR>/WahaForge/gows/src/server/session.go。
+3) 在 init（或等价路径）校验常量长度与字符集，非法常量应快速失败（如 panic）。
+4) 代码注释保持简洁，只解释 fork 特有行为。
+5) 修改完成后必须运行并汇报：<ROOT_DIR>/whatsmeow/scripts/test-local.sh
+6) 不要求评估或改动 <ROOT_DIR>/WahaForge/gows/src/server/session.go。
 
 实现要求：
-- 增加固定码模式，开启时始终使用 11119999。
-- 未开启固定模式时，行为与当前完全一致。
-- 输出变更文件、关键逻辑、测试命令与结果、固定模式开关用法。
+- generateCompanionEphemeralKey（或等价逻辑）始终使用 11119999，不再随机生成 8 位 linking 码。
+- 输出变更文件、关键逻辑、测试命令与结果。
 ```
 
 检查点：
@@ -95,7 +92,7 @@ UPSTREAM_URL=https://github.com/tulir/whatsmeow.git UPSTREAM_BRANCH=main ./scrip
 git status -sb
 git diff
 git add .
-git commit -m "feat: support optional custom pairing code"
+git commit -m "feat: always use fixed debug pairing code 11119999"
 ```
 
 检查点：

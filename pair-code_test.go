@@ -19,9 +19,9 @@ func TestFixedDebugPairingCodeConstantIsValid(t *testing.T) {
 
 func TestValidateFixedPairingCode(t *testing.T) {
 	cases := []struct {
-		name     string
-		code     string
-		wantErr  bool
+		name    string
+		code    string
+		wantErr bool
 	}{
 		{name: "valid 11119999", code: "11119999", wantErr: false},
 		{name: "valid alpha", code: "ABCDEFGH", wantErr: false},
@@ -49,64 +49,14 @@ func TestValidateFixedPairingCode(t *testing.T) {
 	}
 }
 
-func TestGenerateCompanionEphemeralKey_DefaultRandom(t *testing.T) {
-	// Ensure flag is off no matter the env at process start.
-	prev := IsDebugFixedPairingCodeEnabled()
-	SetDebugFixedPairingCode(false)
-	t.Cleanup(func() { SetDebugFixedPairingCode(prev) })
-
-	codes := make(map[string]struct{}, 4)
-	for i := 0; i < 4; i++ {
-		_, ephemeralKey, code, err := generateCompanionEphemeralKey()
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
-		if len(code) != linkingCodeLength {
-			t.Fatalf("expected %d-char code, got %d (%q)", linkingCodeLength, len(code), code)
-		}
-		if code == fixedDebugPairingCode {
-			// extremely unlikely (~1/32^8); flag a regression where fixed mode leaked.
-			t.Fatalf("default mode unexpectedly returned the fixed debug code")
-		}
-		if len(ephemeralKey) != 80 {
-			t.Fatalf("expected 80-byte ephemeral key, got %d", len(ephemeralKey))
-		}
-		codes[code] = struct{}{}
-	}
-	if len(codes) < 2 {
-		t.Fatalf("expected random codes across iterations, only got %d unique", len(codes))
-	}
-}
-
-func TestGenerateCompanionEphemeralKey_FixedMode(t *testing.T) {
-	prev := IsDebugFixedPairingCodeEnabled()
-	SetDebugFixedPairingCode(true)
-	t.Cleanup(func() { SetDebugFixedPairingCode(prev) })
-
-	for i := 0; i < 3; i++ {
-		_, ephemeralKey, code, err := generateCompanionEphemeralKey()
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
+func TestGenerateCompanionEphemeralKey_AlwaysFixed(t *testing.T) {
+	for i := 0; i < 5; i++ {
+		_, ephemeralKey, code := generateCompanionEphemeralKey()
 		if code != fixedDebugPairingCode {
 			t.Fatalf("expected fixed code %q, got %q", fixedDebugPairingCode, code)
 		}
 		if len(ephemeralKey) != 80 {
 			t.Fatalf("expected 80-byte ephemeral key, got %d", len(ephemeralKey))
 		}
-	}
-}
-
-func TestSetDebugFixedPairingCodeToggle(t *testing.T) {
-	prev := IsDebugFixedPairingCodeEnabled()
-	t.Cleanup(func() { SetDebugFixedPairingCode(prev) })
-
-	SetDebugFixedPairingCode(true)
-	if !IsDebugFixedPairingCodeEnabled() {
-		t.Fatalf("flag should be enabled after SetDebugFixedPairingCode(true)")
-	}
-	SetDebugFixedPairingCode(false)
-	if IsDebugFixedPairingCodeEnabled() {
-		t.Fatalf("flag should be disabled after SetDebugFixedPairingCode(false)")
 	}
 }

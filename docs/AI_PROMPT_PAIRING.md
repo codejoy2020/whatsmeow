@@ -1,48 +1,49 @@
-# AI Prompt：修改 whatsmeow 配对码逻辑
+# AI Prompt：whatsmeow fork 固定配对码
 
-下面提供一段可直接复制给 AI（如 Cursor Agent）的提示词，用于在 `whatsmeow` fork 中做配对码相关改造。
+可复制给 Cursor Agent 等的提示词，用于在本 fork 中把**数字配对码**固定为调试值（无开关、始终生效）。
 
-## 使用前约束
+## 约束（先读）
 
-- 仓库路径：`<ROOT_DIR>/whatsmeow`
-- 保持 `go.mod` 的 module 为 `go.mau.fi/whatsmeow`
-- 核心目标文件通常是：`pair-code.go`
-- 本次目标是固定调试码 `11119999`，不要求改动或评估 gows 调用侧
-- 修改后必须运行：`./scripts/test-local.sh`
+| 项 | 说明 |
+|----|------|
+| 仓库 | `<ROOT_DIR>/whatsmeow` |
+| `go.mod` module | 必须保持 `go.mau.fi/whatsmeow`，勿改路径 |
+| 改动范围 | 以 `pair-code.go` 及配对码生成路径为主，避免无关重构 |
+| 配对码 | 固定为 `11119999`（展示为 `1111-9999`），**不要**再做环境变量或运行时开关 |
+| 校验 | 常量须在 `init` 或等价路径校验长度与字符集；非法常量应导致进程无法启动（如 `panic`）或明确失败 |
+| 验证 | 改完后运行 `./scripts/test-local.sh` 并汇报结果 |
+| gows | 不要求评估或改动 gows 调用侧 |
 
-## 可复制提示词
+## 可复制提示词（英文）
 
 ```text
-You are editing my forked WhatsMeow repository at <ROOT_DIR>/whatsmeow.
+You are editing my forked WhatsMeow repo at <ROOT_DIR>/whatsmeow.
 
 Goal:
-Implement fixed pairing code `11119999` in pairing flow for debugging, while keeping backward compatibility for default path (when fixed mode is not used).
+Pairing-code flow must ALWAYS emit the fixed debug code `11119999` (formatted as `1111-9999` for display). No env vars, no runtime toggle, no “opt-in fixed mode” — every PairPhone / generateCompanionEphemeralKey path uses this constant.
 
 Hard constraints:
-1) Do NOT change module path in go.mod (must remain go.mau.fi/whatsmeow).
-2) Focus on pair-code.go and related pairing code path only.
-3) Keep existing default behavior working when fixed mode is not enabled.
-4) Add concise comments only where logic is non-obvious.
-5) After changes, run go tests (equivalent of ./scripts/test-local.sh) and report results.
+1) Do NOT change go.mod module (must remain go.mau.fi/whatsmeow).
+2) Touch pair-code.go and the minimal pairing-code path only; no unrelated refactors.
+3) Validate the constant once at startup (e.g. init + panic on failure) so a bad build fails fast; keep validateFixedPairingCode (or equivalent) testable for length/alphabet rules.
+4) Keep comments concise; only explain non-obvious fork-specific behavior.
+5) After edits, run tests equivalent to ./scripts/test-local.sh and report pass/fail.
 
-What to do:
-1) Locate PairPhone and pairing-code generation logic.
-2) Add a fixed-code mode that always uses `11119999` (prefer minimal, low-risk implementation).
-3) Validate fixed code format/length and return explicit errors if validation fails.
-4) Keep old call path intact for existing callers.
-5) Summarize changed files and behavior differences between default mode and fixed-code mode.
+Tasks:
+1) Find PairPhone and generateCompanionEphemeralKey (or equivalent linking-code generation).
+2) Remove random linking-code generation; always use the fixed 8-character code that matches WhatsApp’s linking alphabet.
+3) Ensure tests cover: constant validates; repeated key generation always returns the same code; ephemeral payload length unchanged (80 bytes).
 
-Output format:
-- List of changed files
-- Key behavior changes
-- Test command and results
-- Toggle method for fixed mode and expected runtime behavior
+Deliverables (reply format):
+- Changed files (paths)
+- Behavior summary (one short paragraph)
+- Command run + test output summary
 ```
 
 ## 建议执行方式
 
-1. 先在新分支修改：`git checkout -b feat/pairing-fixed-11119999`
-2. 让 AI 按上方 prompt 修改代码
-3. 执行 `./scripts/test-local.sh`
-4. 通过 `./scripts/push-fork.sh` 推送到 fork
-5. 运行 `./scripts/bump-gows-replace.sh` 验证 gows 侧联调
+1. 新分支：`git checkout -b feat/pairing-always-11119999`
+2. 粘贴上方 prompt（替换 `<ROOT_DIR>`）
+3. `./scripts/test-local.sh`
+4. `./scripts/push-fork.sh` 推 fork
+5. 需要时 `./scripts/bump-gows-replace.sh` 做 gows 联调
