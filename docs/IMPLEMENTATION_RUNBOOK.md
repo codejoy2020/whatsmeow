@@ -129,6 +129,12 @@ ORIGIN_REMOTE=myorigin ./scripts/push-fork.sh
 WAHA_FORGE_ROOT="$ROOT_DIR/WahaForge" ./scripts/bump-gows-replace.sh github
 ```
 
+若本机直连 GitHub 不稳定，可用已配置的 **proxychains4** 包裹整条命令（`git ls-remote`、`go list` / `go mod tidy` 等子进程均走代理）：
+
+```bash
+proxychains4 -q env WAHA_FORGE_ROOT="$ROOT_DIR/WahaForge" ./scripts/bump-gows-replace.sh github
+```
+
 若 gows 与 whatsmeow 同在一个 monorepo 的 `gows/src` 下，可省略 `WAHA_FORGE_ROOT`（脚本默认使用 `<whatsmeow 上级>/gows/src`）。
 
 检查点：
