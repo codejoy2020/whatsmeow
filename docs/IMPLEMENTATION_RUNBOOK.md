@@ -121,22 +121,20 @@ ORIGIN_REMOTE=myorigin ./scripts/push-fork.sh
 
 ---
 
-## 7. 同步 gows 使用本地 fork（replace）
+## 7. 同步 gows 的 replace 指向 fork 最新 GitHub 提交
+
+在 `whatsmeow` 仓库根目录执行（先推送 fork，再 bump）：
 
 ```bash
-./scripts/bump-gows-replace.sh
+WAHA_FORGE_ROOT="$ROOT_DIR/WahaForge" ./scripts/bump-gows-replace.sh github
 ```
 
-可选（路径覆盖）：
-
-```bash
-WHATSMMEOW_ROOT="$ROOT_DIR/whatsmeow" WAHA_FORGE_ROOT="$ROOT_DIR/WahaForge" ./scripts/bump-gows-replace.sh
-```
+若 gows 与 whatsmeow 同在一个 monorepo 的 `gows/src` 下，可省略 `WAHA_FORGE_ROOT`（脚本默认使用 `<whatsmeow 上级>/gows/src`）。
 
 检查点：
 
 - 脚本成功执行
-- `"$ROOT_DIR/WahaForge/gows/src/go.mod"` 已更新 replace
+- `"$ROOT_DIR/WahaForge/gows/src/go.mod"` 中 `replace go.mau.fi/whatsmeow =>` 已指向 `github.com/codejoy2020/whatsmeow` 的当前伪版本
 
 ---
 
@@ -163,7 +161,7 @@ cd "$ROOT_DIR/whatsmeow"
 # 这里改代码（手工或 AI）
 ./scripts/test-local.sh
 ./scripts/push-fork.sh
-./scripts/bump-gows-replace.sh
+WAHA_FORGE_ROOT="$ROOT_DIR/WahaForge" ./scripts/bump-gows-replace.sh github
 cd "$ROOT_DIR/WahaForge/gows/src" && go build ./...
 ```
 
